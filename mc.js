@@ -1,0 +1,185 @@
+var EventEmitter = require('events').EventEmitter;
+var util = require('util');
+var mcutils = require('./mcutils');
+const MCMessage = require('./mcmessage');
+
+exports.Client = function() {
+    const WebSocket = require('ws');
+    const MCProto = require('./mcprotocol');
+
+    var self = this;
+
+    this.ws = null;
+    this.mcproto = new MCProto();
+    this.uuid = mcutils.uuid();
+    this.userId = mcutils.uuid();
+    this.playersessionuuid = mcutils.uuid();
+
+    this.mcproto.registerRequestHandler('closewebsocket', function(msg) {
+        console.log("closing socket");
+        self.ws.close();
+    });
+
+    this.on('connect', function(options) {
+        
+        var url = "ws://" + options.server + ":" + options.port;
+        self.ws = new WebSocket(url, '', {protocol:'com.microsoft.minecraft.wsencrypt', perMessageDeflate: false});
+
+        self.ws.on('open', function() {
+            console.log("Websocket connected");
+            self.emit('ready');
+        });
+
+        self.ws.on('message', function (msg) {
+
+            var response = self.mcproto.processMessage(msg);
+
+            if(self.ws && (response != null)) {
+                self.ws.send(response);
+            }
+        });
+    });
+
+    this.mcproto.registerRequestHandler('geteduclientinfo', function(msg) {
+        var resp = new MCMessage();
+        resp.header.requestId = msg.header.requestId;
+        resp.header.messagePurpose = "commandResponse";
+        resp.body.clientuuid = self.uuid;
+        resp.body.companionProtocolVersion = 3;
+        resp.body.isEdu = true;
+        resp.body.isHost = true;
+        resp.body.playersessionuuid = self.playersessionuuid;
+        resp.body.statusCode = 0;
+        resp.body.userId = self.userId;
+        resp.body.tenantId = 'a82cd1c1-d2a6-4217-9e1a-18dd5fdb4cf2';
+
+        resp = self.mcproto.formatMessage(resp);
+
+        return resp
+    });
+
+    this.mcproto.registerRequestHandler('enableencryption', function(msg) {
+        var encData = msg.body.commandLine.split(" ");
+        //var peerPublicKey = mcutils.readX509PublicKey(encData[1]);
+        var peerPublicKey = encData[1];
+        var salt = new Buffer(encData[2], "base64");
+
+        var resp = new MCMessage();
+        resp.header.requestId = msg.header.requestId;
+        resp.header.messagePurpose = "commandResponse";
+        resp.body.publicKey = self.mcproto.publicKeyX509;
+        resp.body.statusCode = 0;
+        resp.body.statusMessage = self.mcproto.publicKeyX509;
+
+        resp = self.mcproto.formatMessage(resp);
+
+        self.mcproto.enableEncryption(peerPublicKey, salt);
+
+        return resp
+    });
+
+}
+util.inherits(exports.Client, EventEmitter);
+
+exports.Server = function() {
+    const WebSocketServer = require('ws').Server;
+    const MCProto = require('./mcprotocol');
+
+    var self = this;
+
+    this.wss = null;
+    this.clients = {};
+
+    this.listen = function(port) {
+        self.wss = new WebSocketServer({port: port});
+
+        self.wss.on('error', function(err) {
+            console.log("Error:" + err);
+        });
+
+        self.wss.on('listening', function() {
+            console.log("Server Listening");
+            console.log("Connect with: /connect ws://127.0.0.1:" + port);
+        });
+
+        self.wss.on('close', function() {
+            console.log("Server Stopped");
+        });
+
+        self.wss.on('connection', function (ws) {
+            console.log("Connection received: " + ws._socket.remoteAddress);
+
+            ws.mcproto = new MCProto();
+           
+            self.clients[ws.id] = ws; 
+
+            ws.registerEvent = function(eventName, handler) {
+                var msg = new MCMessage();
+                msg.body.eventName = eventName;
+                msg.header.messagePurpose = "subscribe";
+                msg.header.messageType = "commandRequest";
+               
+                ws.mcproto.events.registerEventHandler(eventName, handler);
+
+                ws.send(ws.mcproto.formatMessage(msg));
+            }
+
+            ws.sendCommand = function(command, handler) {
+                var msg = new MCMessage();
+                msg.body.commandLine = command;
+                msg.header.messagePurpose = "commandRequest";
+                msg.header.messageType = "commandRequest";
+
+                ws.mcproto.registerResponseHandler(msg.header.requestId, handler);
+
+                ws.send(ws.mcproto.formatMessage(msg));
+            }
+
+            ws.on('message', function(msg) {
+
+                var response = ws.mcproto.processMessage(msg);
+
+                if(ws && response) {
+                    console.log("> Sending: " + response);
+                    ws.send(response);
+                }
+            });
+
+            ws.on('end', function() {
+                console.log("Client Disconnected");
+                delete self.clients[ws.id];
+            });
+
+            ws.on('error', function(err) {
+                console.log("Error:" + err);
+            });
+
+            console.log("init");
+            var msg = new MCMessage();
+            msg.header.messagePurpose = "commandRequest";
+            msg.body.origin = { type : "player" };
+            msg.body.commandLine = "geteduclientinfo";
+            msg.body.version = 1;
+            
+            ws.mcproto.registerResponseHandler(msg.header.requestId, function(msg) {
+                console.log("enableencryption");
+                var msg = new MCMessage();
+                msg.header.messagePurpose = "commandRequest";
+                msg.body.origin = { type : "player" };
+                msg.body.commandLine = "enableencryption \"" + mcutils.writeX509PublicKey(ws.mcproto.publicKey) + "\" \"" + ws.mcproto.salt.toString('base64') + "\"";
+
+                ws.mcproto.registerResponseHandler(msg.header.requestId, function(msg) {
+                    ws.mcproto.enableEncryption(msg.body.publicKey, null);
+                    self.emit('ready', ws);
+                });
+
+                console.log("Sending: " + msg.toJson());
+                ws.send(ws.mcproto.formatMessage(msg));
+            });
+
+            console.log("Sending: " + msg.toJson());
+            ws.send(ws.mcproto.formatMessage(msg));
+        });
+    }
+}
+util.inherits(exports.Server, EventEmitter);

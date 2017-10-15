@@ -1,0 +1,18 @@
+{
+  "name": "mcee_server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "mc.js",
+  "dependencies": {
+    "asn1": "^0.2.3",
+    "crypto": "^1.0.1",
+    "ws": "^3.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node mcServerTest.js 5000"
+  },
+  "author": "",
+  "license": "ISC"
+}
