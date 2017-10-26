@@ -17,7 +17,7 @@ function MCWebSocket() {
             if(ws.encryptionEnabled) {
                 data = ws.decipher.update(data);
             }
-            console.log("Recv: " + data);
+            //console.log("Recv: " + data);
             onmessageOrig(data);
         };
     });
@@ -87,10 +87,14 @@ MCWebSocket.prototype.send = function(msg) {
         msg.body.properties.UserId = this.userId;
     }
     */
+    if (msg.body.properties && msg.body.properties.ClientId) {
+        console.log("Removing ClientID " + msg.body.properties.ClientID);
+        delete msg.body.properties.ClientId;
+    }
 
     msg = JSON.stringify(msg);
 
-    console.log("Send: " + msg);
+    //console.log("Send: " + msg);
 
     if (this.encryptionEnabled) {
         msg = this.cipher.update(msg);

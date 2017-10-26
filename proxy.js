@@ -32,7 +32,7 @@ mcproxy.on('connection', function(mcclient) {
     msg.body.version = 1;
 
     mcclient.MessageProcessor.registerResponseHandler(msg.header.requestId, function(msg) {
-        //console.log(msg);
+
         mcclient.uuid = msg.body.clientuuid;
         mcclient.playersessionuuid = msg.body.playersessionuuid;
         mcclient.userId = msg.body.userId;
@@ -43,7 +43,6 @@ mcproxy.on('connection', function(mcclient) {
         msg.body.commandLine = "enableencryption \"" + mcclient.publicKeyX509 + "\" \"" + mcclient.salt.toString('base64') + "\"";
 
         mcclient.MessageProcessor.registerResponseHandler(msg.header.requestId, function(msg) {
-            //console.log(msg);
             mcclient.enableEncryption(msg.body.publicKey, null);
         });
         mcclient.send(msg.toJson());
@@ -51,12 +50,12 @@ mcproxy.on('connection', function(mcclient) {
     mcclient.send(msg.toJson());
 
     var forwardToServer = function(msg) {
-        //console.log("Client -> Server\n" + msg.toString());
+        console.log("MC -> Code\n" + msg.toString());
         self.mcserver.send(msg);
     }
 
     var forwardToClient = function(msg) {
-        //console.log("Server -> Client\n" + msg.toString());
+        console.log("Code -> MC\n" + msg.toString());
         mcclient.send(msg);
     }
 
@@ -69,6 +68,8 @@ mcproxy.on('connection', function(mcclient) {
         });
 
         self.mcserver.MessageProcessor.registerCommandHandler('geteduclientinfo', function(msg) {
+            self.mcserver.MessageProcessor.unregisterCommandHandler('geteduclientinfo');
+
             //console.log("geteduclientinfo: " + JSON.stringify(msg));
 
             var resp = new MCMessage();
@@ -90,6 +91,8 @@ mcproxy.on('connection', function(mcclient) {
         });
 
         self.mcserver.MessageProcessor.registerCommandHandler('enableencryption', function(msg) {
+            self.mcserver.MessageProcessor.unregisterCommandHandler('enableencryption');
+
             //console.log("enableencryption: " + JSON.stringify(msg));
 
             var encData = msg.body.commandLine.split(" ");

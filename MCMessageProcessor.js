@@ -19,7 +19,7 @@ function MCMessageProcessor(ws) {
 
     this.ws.on('message', function(msg) {
         if (!self.ws.encryptionEnabled) {
-            console.log("Recv: " + msg);
+            //console.log("Recv: " + msg);
         }
         self.processMessage(msg);
     });
@@ -33,9 +33,15 @@ function MCMessageProcessor(ws) {
 MCMessageProcessor.prototype.registerCommandHandler = function(commandName, handler) {
     this.commandHandlers[commandName] = handler;
 }
+MCMessageProcessor.prototype.unregisterCommandHandler = function(commandName) {
+    delete this.commandHandlers[commandName];
+}
 
 MCMessageProcessor.prototype.registerResponseHandler = function(requestId, handler) {
     this.responseHandlers[requestId] = handler;
+}
+MCMessageProcessor.prototype.unregisterResponseHandler = function(requestId) {
+    delete this.responseHandlers[requestId];
 }
 
 MCMessageProcessor.prototype.processRequest = function(msg) {
