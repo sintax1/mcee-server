@@ -60,9 +60,8 @@ exports.Client = function() {
 
     this.mcproto.registerRequestHandler('enableencryption', function(msg) {
         var encData = msg.body.commandLine.split(" ");
-        //var peerPublicKey = mcutils.readX509PublicKey(encData[1]);
         var peerPublicKey = encData[1];
-        var salt = new Buffer(encData[2], "base64");
+        var salt = encData[2];
 
         var resp = new MCMessage();
         resp.header.requestId = msg.header.requestId;

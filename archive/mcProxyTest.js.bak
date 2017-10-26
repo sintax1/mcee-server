@@ -1,0 +1,3 @@
+const MCProxy = require("./mcproxy").Proxy;
+var mc = new MCProxy();
+

@@ -1,6 +1,8 @@
 const MCEvents = require('./mcevents');
 const mcutils = require('./mcutils');
 const crypto = require('crypto');
+const stream = require("stream");
+const util = require('util');
 
 const MCRequestCommands = [
     'listd', 
@@ -37,8 +39,43 @@ var MCProtocol = function() {
     });
 }
 
+MCProtocol.prototype.decrypt = function (msg) {
+    console.log("MCProtocol.prototype.decrypt");
+
+    if (this.encryptionEnabled) {
+        msg = this.decipher.update(msg);
+    }
+
+    msg = JSON.parse(msg);
+
+    if (msg.header.messagePurpose == "commandResponse" && msg.body.publicKey) {
+        console.log("Enabling Encryption: " + JSON.stringify(msg));
+        this.enableEncryption(msg.body.publicKey);
+    }
+
+    return JSON.stringify(msg);
+}
+
+MCProtocol.prototype.encrypt = function (msg) {
+    console.log("MCProtocol.prototype.encrypt");
+
+    if (this.encryptionEnabled) {
+        msg = this.cipher.update(msg);
+    }
+
+    msg = JSON.parse(msg);
+
+    if (msg.header.messagePurpose == "commandRequest" && msg.body.commandLine.split(" ")[0] == "enableencryption") {
+        console.log("Enabling Encryption: " + JSON.stringify(msg));
+        var encData = msg.body.commandLine.split(" ");
+        this.enableEncryption(encData[1], encData[2]);
+    }
+
+    return JSON.stringify(msg);
+}
+
 MCProtocol.prototype.enableEncryption = function(peerPublicKey, salt) {
-    if(!salt) salt = this.salt;
+    if(!salt) salt = new Buffer(this.salt, 'base64');
 
     var sharedSecret = this.ec.computeSecret(mcutils.readX509PublicKey(peerPublicKey));
     var secretKey = crypto.createHash('sha256').update(salt).update(sharedSecret).digest();

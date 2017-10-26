@@ -7,7 +7,7 @@ exports.uuid = function() {
       .substring(1);
   }
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
-    s4() + '-' + s4() + s4() + s4();
+    s4() + s4() + s4() + s4();
 }
 
 exports.readX509PublicKey = function(key) {
