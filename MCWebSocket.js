@@ -59,43 +59,6 @@ MCWebSocket.prototype.peerPublicKey = null;
 MCWebSocket.prototype.send = function(msg) {
     var args = Array.prototype.slice.call(arguments, 0);
 
-    msg = JSON.parse(msg);
-
-    /*
-    if (msg.body && msg.body.userId) {
-        console.log("Switching userId " + msg.body.userId + " -> " + this.userId);
-        msg.body.userId = this.userId;
-    }
-
-    if (msg.body && msg.body.clientuuid) {
-        console.log("Switching clientuuid " + msg.body.clientuuid + " -> " + this.userId);
-        msg.body.clientuuid = this.userId;
-    }
-
-    if (msg.body && msg.body.playersessionuuid) {
-        console.log("Switching playersessionuuid " + msg.body.playersessionuuid + " -> " + this.playersessionuuid);
-        msg.body.playersessionuuid = this.playersessionuuid;
-    }
-
-    if (msg.body.properties && msg.body.properties.AppSessionID) {
-        console.log("Switching AppSessionID " + msg.body.properties.AppSessionID + " -> " + this.playersessionuuid);
-        msg.body.properties.AppSessionID = this.playersessionuuid;
-    }
-
-    if (msg.body.properties && msg.body.properties.UserId) {
-        console.log("Switching UserId " + msg.body.properties.UserId + " -> " + this.userId);
-        msg.body.properties.UserId = this.userId;
-    }
-    */
-    if (msg.body.properties && msg.body.properties.ClientId) {
-        console.log("Removing ClientID " + msg.body.properties.ClientID);
-        delete msg.body.properties.ClientId;
-    }
-
-    msg = JSON.stringify(msg);
-
-    //console.log("Send: " + msg);
-
     if (this.encryptionEnabled) {
         msg = this.cipher.update(msg);
     }
